@@ -56,8 +56,8 @@ export class notesnookFromThePast extends DurableObject<Env> {
 			userTimezone: timezone,
 			}
 		try {
-			await this.ctx.storage.put("data", typia.json.assertStringify<StoredData>(safeOptions))
 			await this.ctx.storage.put("note", content)
+			await this.ctx.storage.put("data", typia.json.assertStringify<StoredData>(safeOptions))
 			await this.ctx.storage.setAlarm(data.toDate)
 		} catch (err) {
 			// delete everything to avoid invalid state
@@ -68,41 +68,45 @@ export class notesnookFromThePast extends DurableObject<Env> {
 		}
 	}
 
+	private async sendNote() {
+		const data: string | undefined = await this.ctx.storage.get<string>("data")
+		const noteHtml: string | undefined = await this.ctx.storage.get<string>("note")
+		if (data === undefined || noteHtml === undefined) {
+			console.log("I'm corrupt?")
+			await this.ctx.storage.deleteAll()
+			return
+		}
+		const parsedData = typia.json.assertParse<StoredData>(data)
+		const publicKey = await getInboxPublicEncryptionKey(parsedData.apikey, parsedData.server ?? this.env["Notesnook-Server-Url"])
+		if (!publicKey) {
+			// never deliverable, apikey invalid
+			await this.ctx.storage.deleteAll()
+			return
+		}
+		const note: InboxItemSchema = {
+			title: parsedData.note.title,
+			archived: parsedData.note.archived,
+			favorite: parsedData.note.favorite,
+			readonly: parsedData.note.readonly,
+			pinned: parsedData.note.pinned,
+			notebookIds: parsedData.note.notebookIds,
+			tagIds: parsedData.note.tagIds,
+			source: `You from the past on ${new Date(parsedData.fromDate).toLocaleString("en-US", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: parsedData.userTimezone})}`,
+			version: 1,
+			content: {
+				type: "html",
+				data: noteHtml
+			},
+			type: "note"
+		}
+		const message = await encrypt(typia.json.assertStringify<InboxItemSchema>(note), publicKey)
+		await postEncryptedInboxItem(parsedData.apikey, message, parsedData.server ?? this.env["Notesnook-Server-Url"])
+		await this.ctx.storage.deleteAll()
+	}
+
 	async alarm(alarmInfo: AlarmInvocationInfo) {
 		try {
-			const data: string | undefined = await this.ctx.storage.get<string>("data")
-			const noteHtml: string | undefined = await this.ctx.storage.get<string>("note")
-			if (data === undefined || noteHtml === undefined) {
-				console.log("I'm corrupt?")
-				await this.ctx.storage.deleteAll()
-				return
-			}
-			const parsedData = typia.json.assertParse<StoredData>(data)
-			const publicKey = await getInboxPublicEncryptionKey(parsedData.apikey, parsedData.server ?? this.env["Notesnook-Server-Url"])
-			if (!publicKey) {
-				// never deliverable, apikey invalid
-				await this.ctx.storage.deleteAll()
-				return
-			}
-			const note: InboxItemSchema = {
-				title: parsedData.note.title,
-				archived: parsedData.note.archived,
-				favorite: parsedData.note.favorite,
-				readonly: parsedData.note.readonly,
-				pinned: parsedData.note.pinned,
-				notebookIds: parsedData.note.notebookIds,
-				tagIds: parsedData.note.tagIds,
-				source: `You from the past on ${new Date(parsedData.fromDate).toLocaleString("en-US", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: parsedData.userTimezone})}`,
-				version: 1,
-				content: {
-					type: "html",
-					data: noteHtml
-				},
-				type: "note"
-			}
-			const message = await encrypt(typia.json.assertStringify<InboxItemSchema>(note), publicKey)
-			await postEncryptedInboxItem(parsedData.apikey, message, parsedData.server ?? this.env["Notesnook-Server-Url"])
-			await this.ctx.storage.deleteAll()
+			await this.sendNote()
 		} catch (err) {
 			const attempts = await this.ctx.storage.get<number>("attempts") ?? 0
 			console.error("Failed to deliver:", err)
