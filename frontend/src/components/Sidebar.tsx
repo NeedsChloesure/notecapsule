@@ -111,6 +111,8 @@ function describeSendError(status: number, statusText: string): string {
       return 'The API key was rejected. Check that it is valid and try again.'
     case 413:
       return 'The note is too large to schedule. Try removing or shrinking large images.'
+    case 429:
+      return 'You have been ratelimited. Try again in about a minute.'
     default:
       return statusText || `The note could not be scheduled (${status}).`
   }
@@ -167,12 +169,11 @@ function Sidebar({
         setProceed(false)
         setStatusMessage('The API key could not be validated.')
       }
+      setTimeout(() => setStatusMessage(''), 3000)
     } catch(err) {
       setProceed(false)
       console.error(err)
       setStatusMessage('Unable to reach the Notesnook API.')
-    } finally {
-      setTimeout(() => setStatusMessage(''), 3000)
     }
   }
 
@@ -222,7 +223,7 @@ function Sidebar({
     }
 
     setIsSending(true)
-    setStatusMessage("sending...")
+    setStatusMessage("Sending...")
     try {
       const publishedContent = await alterHTMLForPublishing(content)
       const payload: UserData = {
@@ -252,10 +253,10 @@ function Sidebar({
       if (response.ok) {
         setStatusMessage("Sent")
         clearEverything({ setContent, setTitle, setTags, setNoteAttributes, setNotebooks, editorKey, setEditorKey })
+        setTimeout(() => {setStatusMessage('')}, 3000)
       } else {
         setStatusMessage(describeSendError(response.status, response.statusText))
       }
-      setTimeout(() => {setStatusMessage('')}, 3000)
     } catch(err) {
       setStatusMessage('Unable to reach the scheduling service. Check your connection and try again. More details can be found in dev tools.')
       console.error(err)
@@ -429,7 +430,7 @@ function Sidebar({
         <Text className="sidebar-footer-copy sidebar-footer-affiliation">
           NoteCapsule is an independent community project and is not affiliated with or endorsed by Notesnook or Streetwriters (Private) Ltd.
         </Text>
-        <Text className='sidebar-footer-copy'>NoteCapsule is opensource software, find more information <Link to="https://github.com/needschloesure/notecapsule">here</Link></Text>
+        <Text className='sidebar-footer-copy'>NoteCapsule is opensource software, find more information <Link to="https://github.com/needschloesure/notecapsule">here.</Link></Text>
       </Box>
     </Flex>
   )

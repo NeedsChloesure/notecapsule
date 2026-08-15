@@ -36,7 +36,17 @@
 	},
 	"vars": {
 		"Notesnook-Server-Url": "https://api.notesnook.com"
-	}
+	},
+	"ratelimits": [
+		{
+			"name": "PUBLISHED_DO",
+			"namespace_id": "1001",
+			"simple": {
+				"limit": 1,
+				"period": 60
+			}
+		}
+	]
 	/**
 	 * Smart Placement
 	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement

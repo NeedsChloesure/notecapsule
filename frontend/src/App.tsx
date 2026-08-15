@@ -9,13 +9,14 @@ import { PrivacyPolicy, TermsOfService } from './pages/LegalPages'
 import { deleteAll } from './utils/imageStore'
 
 function EditorApp() {
+  const deadState = sessionStorage.getItem('hasUnsentChanges')
   const [editorKey, setEditorKey] = useState<number>(0)
   const [apiKey, setApiKey] = useState<string>(sessionStorage.getItem('apikey') ?? '')
-  const [title, setTitle] = useState<string>(sessionStorage.getItem('title') ?? '')
-  const [tags, setTags] = useState<string[]>(JSON.parse(sessionStorage.getItem('tags') ?? '[]'))
-  const [notebooks, setNotebooks] = useState<string[]>(JSON.parse(sessionStorage.getItem('notebooks') ?? '[]'))
-  const [noteAttributes, setNoteAttributes] = useState<boolean[]>(JSON.parse(sessionStorage.getItem('noteAttributes') ?? '[false, false, false, false]'))
-  const [content, setContent] = useState<string>(sessionStorage.getItem('note_content') ?? '<p></p>')
+  const [title, setTitle] = useState<string>(deadState ? sessionStorage.getItem('title') ?? '' : '')
+  const [tags, setTags] = useState<string[]>(deadState ? JSON.parse(sessionStorage.getItem('tags') ?? '[]') : [])
+  const [notebooks, setNotebooks] = useState<string[]>(deadState ? JSON.parse(sessionStorage.getItem('notebooks') ?? '[]') : [])
+  const [noteAttributes, setNoteAttributes] = useState<boolean[]>(deadState ? JSON.parse(sessionStorage.getItem('noteAttributes') ?? '[false, false, false, false]') : [false, false, false, false])
+  const [content, setContent] = useState<string>(deadState ? sessionStorage.getItem('note_content') ?? '<p></p>' : '<p></p>')
   const [server, setServer] = useState<string | undefined>(sessionStorage.getItem('server') ?? undefined)
 
   // If this is a fresh session (no unsent draft), drop any leftover draft data

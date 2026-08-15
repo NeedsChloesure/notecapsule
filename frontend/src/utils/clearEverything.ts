@@ -11,7 +11,7 @@ type ClearEverythingProps = {
     editorKey: number
 }
 
-const keys = ["tags", "title", "notebooks", "noteAttributes", "note_content", "hasUnsentChanges"]
+const keys = ["hasUnsentChanges", "tags", "title", "notebooks", "noteAttributes", "note_content"]
 
 export function clearEverything({
     editorKey,

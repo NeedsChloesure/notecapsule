@@ -139,14 +139,26 @@ export default {
 				return new Response(String(err), { status: 400 })
 			}
 			if (data.toDate > maxYear) {
-				console.log("I'm here?")
 				return new Response(null, {status: 400})
+			}
+			if (data.content.length > 16_000_000) {
+				// return 413 for content that's definitely way too large.
+				return new Response(null, {status: 413})
 			}
 			const publicKey = await getInboxPublicEncryptionKey(data.options.apikey, data.options.server ?? env["Notesnook-Server-Url"])
 			if (!publicKey) {
 				return new Response(null, { status: 401 })
 			}
+			const ip = request.headers.get("CF-Connecting-IP")
+
+			if (!ip) {
+				return new Response("Unable to determine IP", { status: 400 })
+}
 			try {
+				const yes = await env.PUBLISHED_DO.limit({key: ip})
+				if (!yes.success) {
+					return new Response("Ratelimited", {status: 429})
+				}
 				await stub.createDO(data, timezone)
 			} catch (err) {
 				if (err instanceof Error) {
