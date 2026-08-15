@@ -1,0 +1,3 @@
+[submodule "nn-inbox-cloudflare-workers"]
+	path = nn-inbox-cloudflare-workers
+	url = https://github.com/needschloesure/nn-inbox-cloudflare-workers

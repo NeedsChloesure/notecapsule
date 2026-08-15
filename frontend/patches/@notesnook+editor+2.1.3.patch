@@ -1,0 +1,136 @@
+diff --git a/node_modules/@notesnook/editor/dist/index.mjs b/node_modules/@notesnook/editor/dist/index.mjs
+index 643577e..aa4113f 100644
+--- a/node_modules/@notesnook/editor/dist/index.mjs
++++ b/node_modules/@notesnook/editor/dist/index.mjs
+@@ -2902,17 +2902,25 @@ function HighlighterPlugin({
+               }
+             }
+             if (changedBlocks.size > 0) {
+-              const { tr } = view.state;
+-              const changedNodes = findChildren2(
+-                tr.doc,
+-                (n) => n.type.name === name && changedBlocks.has(n.attrs.id)
+-              );
+-              changedNodes.forEach(({ node, pos }) => {
+-                tr.setNodeMarkup(pos, node.type, node.attrs);
+-              });
+-              tr.setMeta("preventUpdate", true);
+-              tr.setMeta("addToHistory", false);
+-              view.dispatch(tr);
++              // Do not dispatch while ProseMirror is still updating plugin
++              // views. The language loader resolves asynchronously, but a
++              // cached module can resolve during the current update cycle and
++              // corrupt the decoration set (DecorationGroup.localsInner).
++              setTimeout(() => {
++                if (view.isDestroyed) return;
++                const { tr } = view.state;
++                const changedNodes = findChildren2(
++                  tr.doc,
++                  (n) => n.type.name === name && changedBlocks.has(n.attrs.id)
++                );
++                changedNodes.forEach(({ node, pos }) => {
++                  tr.setNodeMarkup(pos, node.type, node.attrs);
++                });
++                if (tr.steps.length === 0) return;
++                tr.setMeta("preventUpdate", true);
++                tr.setMeta("addToHistory", false);
++                view.dispatch(tr);
++              }, 0);
+             }
+           });
+         }
+@@ -4371,7 +4379,6 @@ function InsertBlock(props) {
+       callout(editor),
+       blockquote(editor),
+       image(editor, isMobile),
+-      attachment(editor),
+       isMobile ? embedMobile(editor) : embedDesktop(editor),
+       table(editor)
+     ];
+@@ -4510,7 +4517,6 @@ var image = (editor, isMobile) => ({
+           return (_b = (_a = editor.storage).openAttachmentPicker) == null ? void 0 : _b.call(_a, "camera");
+         }
+       },
+-      isMobile ? uploadImageFromURLMobile(editor) : uploadImageFromURL(editor)
+     ]
+   }
+ });
+@@ -4592,18 +4598,6 @@ var embedDesktop = (editor) => ({
+     });
+   }
+ });
+-var attachment = (editor) => ({
+-  key: "attachment",
+-  type: "button",
+-  title: "Attachment",
+-  icon: Icons.attachment,
+-  isChecked: editor.isActive("attachment"),
+-  onClick: () => {
+-    var _a, _b;
+-    return (_b = (_a = editor.storage).openAttachmentPicker) == null ? void 0 : _b.call(_a, "file");
+-  },
+-  modifier: "Mod-Shift-A"
+-});
+ var tasklist = (editor) => ({
+   key: "tasklist",
+   type: "button",
+@@ -8075,20 +8069,18 @@ var defaultPresets = {
+       "bold",
+       "italic",
+       "underline",
+-      [
+-        "strikethrough",
+-        "code",
+-        "subscript",
+-        "superscript",
+-        "highlight",
+-        "textColor",
+-        "math"
+-      ]
++      "strikethrough",
++      "code",
++      "subscript",
++      "superscript",
++      "highlight",
++      "textColor",
++      "math"
+     ],
+     ["fontSize"],
+     ["headings", "fontFamily"],
+     ["checkList", "numberedList", "bulletList"],
+-    ["addLink", "addInternalLink"],
++    ["addLink"],
+     ["alignment", "textDirection"],
+     ["clearformatting"]
+   ],
+@@ -9606,13 +9598,6 @@ var AttachmentNode = Node8.create({
+       }
+     };
+   },
+-  addKeyboardShortcuts() {
+-    return {
+-      "Mod-Shift-A": () => {
+-        var _a, _b;
+-        return ((_b = (_a = this.editor.storage).openAttachmentPicker) == null ? void 0 : _b.call(_a, "file")) || true;
+-      }
+-    };
+   }
+   //   addInputRules() {
+   //     return [
+@@ -9626,7 +9611,7 @@ var AttachmentNode = Node8.create({
+   //       }),
+   //     ];
+   //   },
+-});
++);
+ function getDataAttribute(name, def) {
+   return {
+     default: def,
+@@ -10429,7 +10414,6 @@ function ImageComponent(props) {
+                       "imageAlignLeft",
+                       "imageAlignCenter",
+                       "imageAlignRight",
+-                      "imageFloat",
+                       "imageProperties"
+                     ],
+                     sx: {
