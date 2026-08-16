@@ -42,6 +42,17 @@ export class notesnookFromThePast extends DurableObject<Env> {
 		super(ctx, env)
 	}
 
+	async DUMP() {
+		const html = await this.ctx.storage.get("note")
+		const data = await this.ctx.storage.get("data")
+		const alarm = await this.ctx.storage.getAlarm();
+		return {
+			html: html,
+			metadata: data,
+			alarm: alarm
+		}
+	}
+
 	async getDBSize() {
 		const bytes = this.ctx.storage.sql.databaseSize
 		const alarm = await this.ctx.storage.getAlarm()
@@ -206,6 +217,10 @@ export default {
 			return Response.json(bytes)
 		}
 		if (request.method === "GET" && url.pathname === "/api/harddelete") {
+			const yes = await env.PUBLISHED_DO.limit({key: "DEBUG_GLOBALKEY_DELETE"})
+			if (!yes.success) {
+				return Response.json({}, {status: 429})
+			}
 			const id = url.searchParams
 			const DOid = id.get("DO")
 			if (!DOid) {
@@ -215,6 +230,20 @@ export default {
 			const stub = env.NOTESNOOK_FROM_THE_PAST.get(_stub)
 			const bytes = await stub.hardDelete()
 			return Response.json({result: bytes})
+		}
+		if (request.method === "GET" && url.pathname === "/api/dump") {
+			const yes = await env.PUBLISHED_DO.limit({key: "DEBUG_GLOBALKEY_DUMP"})
+			if (!yes.success) {
+				return Response.json({}, {status: 429})
+			}
+			const id = url.searchParams
+			const DOid = id.get("DO")
+			if (!DOid) {
+				return new Response("", {status: 404})
+			}
+			const _stub = env.NOTESNOOK_FROM_THE_PAST.idFromString(DOid)
+			const stub = env.NOTESNOOK_FROM_THE_PAST.get(_stub)
+			return Response.json(await stub.DUMP())
 		}
 		return new Response('Hello World!', { status: 405 });
 	},

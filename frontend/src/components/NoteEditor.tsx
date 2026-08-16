@@ -10,7 +10,7 @@ import {
 import { TextSelection } from '@tiptap/pm/state'
 import { EmotionThemeProvider } from '@notesnook/theme'
 import { Flex, Box, Input, Text } from '@theme-ui/components'
-import { prepareImageForInsert, getImage } from '../utils/imageStore'
+import { prepareImageForInsert, prepareImageDataUrlForInsert, getImage } from '../utils/imageStore'
 
 import '@notesnook/editor/styles/styles.css'
 import '@notesnook/editor/styles/katex.min.css'
@@ -148,6 +148,88 @@ function pickFile(): Promise<File | null> {
   })
 }
 
+function getImageFiles(dataTransfer: DataTransfer | null): File[] {
+  if (!dataTransfer) return []
+  const files: File[] = []
+  // Clipboard image bitmaps (e.g. screenshots, "Copy image") show up as
+  // `file` items before they appear in `.files` in some browsers.
+  if (dataTransfer.items?.length) {
+    for (const item of Array.from(dataTransfer.items)) {
+      if (item.kind === 'file' && item.type.startsWith('image/')) {
+        const file = item.getAsFile()
+        if (file) files.push(file)
+      }
+    }
+  }
+  if (files.length === 0 && dataTransfer.files?.length) {
+    for (const file of Array.from(dataTransfer.files)) {
+      if (file.type.startsWith('image/')) files.push(file)
+    }
+  }
+  return files
+}
+
+function htmlHasTextContent(html: string): boolean {
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  doc.querySelectorAll('img, br, hr, meta').forEach((el) => el.remove())
+  return (doc.body?.textContent ?? '').trim().length > 0
+}
+
+function extractDataUriImages(html: string): string[] {
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  return Array.from(doc.querySelectorAll('img'))
+    .map((img) => img.getAttribute('src'))
+    .filter((src): src is string => !!src && src.startsWith('data:'))
+}
+
+async function insertImageFiles(editor: Editor | null, files: File[]): Promise<void> {
+  if (!editor) return
+  for (const file of files) {
+    try {
+      const attrs = await prepareImageForInsert(file)
+      editor.chain().focus().insertImage(attrs).run()
+    } catch (err) {
+      console.error('Failed to insert pasted image', err)
+    }
+  }
+}
+
+async function insertImageDataUrls(editor: Editor | null, dataUrls: string[]): Promise<void> {
+  if (!editor) return
+  for (const dataUrl of dataUrls) {
+    try {
+      const attrs = await prepareImageDataUrlForInsert(dataUrl)
+      editor.chain().focus().insertImage(attrs).run()
+    } catch (err) {
+      console.error('Failed to insert pasted image', err)
+    }
+  }
+}
+
+function handleEditorPaste(editor: Editor | null, event: ClipboardEvent): boolean {
+  const files = getImageFiles(event.clipboardData)
+  const html = event.clipboardData?.getData('text/html') ?? ''
+  if (files.length > 0) {
+    // Only take over an image-only paste so we don't swallow surrounding text.
+    if (htmlHasTextContent(html)) return false
+    void insertImageFiles(editor, files)
+    return true
+  }
+  const dataUrls = extractDataUriImages(html)
+  if (dataUrls.length > 0 && !htmlHasTextContent(html)) {
+    void insertImageDataUrls(editor, dataUrls)
+    return true
+  }
+  return false
+}
+
+function handleEditorDrop(editor: Editor | null, event: DragEvent): boolean {
+  const files = getImageFiles(event.dataTransfer)
+  if (files.length === 0) return false
+  void insertImageFiles(editor, files)
+  return true
+}
+
 type NoteEditorType = {
   content: string
   onContentChange: (content: string) => void
@@ -244,6 +326,8 @@ function NoteEditor({content, onContentChange, tags, title, setTags, setTitle}:N
     getAttachmentData,
     editorProps: {
       handleKeyDown: (_view, event) => handleEditorKeyDown(editorRef.current, event),
+      handlePaste: (_view, event) => handleEditorPaste(editorRef.current, event),
+      handleDrop: (_view, event) => handleEditorDrop(editorRef.current, event),
     },
   }
 

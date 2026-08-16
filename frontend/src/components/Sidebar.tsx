@@ -155,6 +155,7 @@ function Sidebar({
       // we validate the key on the worker instead of in the client
       // in order to ensure that:
       // - the worker can connect to the server.
+      // - what we send as the server is correct.
       const result = await fetch(`/api/key`, {
         method: "POST",
         body: JSON.stringify({server: apiServer, apikey: apiKey})
@@ -226,7 +227,7 @@ function Sidebar({
       const publishedContent = await alterHTMLForPublishing(content)
       const payload: UserData = {
         options: {
-          apikey: apiKey,
+          apikey: apiKey.trim(),
           note: {
             title: title,
             tagIds: (tags.length ? tags : undefined),
@@ -236,7 +237,7 @@ function Sidebar({
             pinned: noteAttributes[2] ? true : undefined,
             favorite: noteAttributes[3] ? true : undefined
           },
-          server: (server ? server : undefined)
+          server: (server ? normalizeServer(server) : undefined)
         },
         content: publishedContent,
         toDate: sendToDate
@@ -440,17 +441,27 @@ async function alterHTMLForPublishing(content: string): Promise<string> {
   const images = doc.querySelectorAll('img')
   for (const image of images) {
     const hash = image.dataset?.hash
-    if (hash === undefined) {
-      image.remove()
+    if (hash !== undefined) {
+      const data = await getImage(hash)
+      if (!data) {
+        image.remove()
+        continue
+      }
+      image.src = data
+      image.removeAttribute("data-hash") // remove hash since the client will supply its own on receipt.
       continue
     }
-    const data = await getImage(hash)
-    if (!data) {
-      image.remove()
+
+    // No hash: the image entered the document outside the normal flow and
+    // wasn't migrated to IndexedDB when it was inserted. Keep an inline data
+    // URL rather than dropping the image; it is never re-stored here because
+    // IndexedDB is cleared right after a successful publish.
+    const src = image.getAttribute('src')
+    if (src && src.startsWith('data:')) {
       continue
     }
-    image.src = data
-    image.removeAttribute("data-hash") // remove hash since the client will supply its own on receipt.
+
+    image.remove()
   }
   return doc.body.innerHTML
 }

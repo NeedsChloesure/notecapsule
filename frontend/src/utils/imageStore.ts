@@ -28,12 +28,25 @@ function promisifyRequest<T>(request: IDBRequest<T>): Promise<T> {
   })
 }
 
-export async function hashFile(file: File): Promise<string> {
-  const buffer = await file.arrayBuffer()
+async function hashBytes(buffer: ArrayBuffer): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', buffer)
   return Array.from(new Uint8Array(digest))
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('')
+}
+
+/** Decodes a data URL to a Blob so we can hash its raw bytes (which matches
+ *  the hash produced from the original file the data URL was created from). */
+async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
+  return (await fetch(dataUrl)).blob()
+}
+
+async function hashAndStore(dataUrl: string, bytes: ArrayBuffer): Promise<string> {
+  const hash = await hashBytes(bytes)
+  // Dedupe: if we've already stored this exact image, don't write it again.
+  const existing = await getImage(hash)
+  if (!existing) await storeImage(hash, dataUrl)
+  return hash
 }
 
 export async function storeImage(hash: string, dataUrl: string): Promise<void> {
@@ -89,29 +102,35 @@ function getImageDimensions(dataUrl: string): Promise<{ width: number; height: n
 }
 
 /**
+ * Hashes + stores a data URL's bytes and returns the attrs to hand straight to
+ * editor.commands.insertImage(...) — deliberately with no `src`, so the
+ * document only ever gets the reference, not the bytes.
+ */
+export async function prepareImageDataUrlForInsert(dataUrl: string, filename = '') {
+  const blob = await dataUrlToBlob(dataUrl)
+  const hash = await hashAndStore(dataUrl, await blob.arrayBuffer())
+
+  const { width, height } = await getImageDimensions(dataUrl)
+
+  return {
+    hash,
+    mime: blob.type,
+    filename,
+    size: blob.size,
+    width,
+    height,
+    aspectRatio: width / height,
+  }
+}
+
+/**
  * Hashes + stores a File's bytes and returns the attrs to hand straight to
  * editor.commands.insertImage(...) — deliberately with no `src`, so the
  * document only ever gets the reference, not the bytes.
  */
 export async function prepareImageForInsert(file: File) {
   const dataUrl = await readFileAsDataURL(file)
-  const hash = await hashFile(file)
-
-  // Dedupe: if we've already stored this exact image, don't write it again.
-  const existing = await getImage(hash)
-  if (!existing) await storeImage(hash, dataUrl)
-
-  const { width, height } = await getImageDimensions(dataUrl)
-
-  return {
-    hash,
-    mime: file.type,
-    filename: file.name,
-    size: file.size,
-    width,
-    height,
-    aspectRatio: width / height,
-  }
+  return prepareImageDataUrlForInsert(dataUrl, file.name)
 }
 
 export async function deleteAll(): Promise<void> {
