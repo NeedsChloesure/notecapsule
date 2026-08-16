@@ -138,7 +138,7 @@ export default {
 				console.log(err)
 				return new Response(String(err), { status: 400 })
 			}
-			if (data.toDate > maxYear) {
+			if (data.toDate > maxYear || now.getTime() > data.toDate) {
 				return new Response(null, {status: 400})
 			}
 			if (data.content.length > 16_000_000) {
@@ -153,7 +153,7 @@ export default {
 
 			if (!ip) {
 				return new Response("Unable to determine IP", { status: 400 })
-}
+			}
 			try {
 				const yes = await env.PUBLISHED_DO.limit({key: ip})
 				if (!yes.success) {
