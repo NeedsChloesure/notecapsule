@@ -112,7 +112,7 @@ export class notesnookFromThePast extends DurableObject<Env> {
 			console.error("Failed to deliver:", err)
 			if (attempts >= 6) {
 				await this.ctx.storage.deleteAll()
-				console.log("Exhausted max attempts.")
+				console.error("Exhausted max attempts. Giving up.")
 				return
 			} else {
 				await this.ctx.storage.put("attempts", attempts + 1)
