@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router'
 import { Flex } from '@theme-ui/components'
 import { EmotionThemeProvider } from '@notesnook/theme'
@@ -18,15 +18,28 @@ function EditorApp() {
   const [noteAttributes, setNoteAttributes] = useState<boolean[]>(deadState ? JSON.parse(sessionStorage.getItem('noteAttributes') ?? '[false, false, false, false]') : [false, false, false, false])
   const [content, setContent] = useState<string>(deadState ? sessionStorage.getItem('note_content') ?? '<p></p>' : '<p></p>')
   const [server, setServer] = useState<string | undefined>(sessionStorage.getItem('server') ?? undefined)
+  const initialEditorKey = useRef(editorKey)
+  const didInitialize = useRef(false)
 
   // If this is a fresh session (no unsent draft), drop any leftover draft data
   // from a previous session. Runs once on mount so the state initializers above
   // have already read whatever was persisted before we clear it.
   useEffect(() => {
+    if (didInitialize.current) return
+    didInitialize.current = true
+
     if (!deadState) {
-      void clearEverything({setContent, setEditorKey, setTags, setNotebooks, setTitle, setNoteAttributes, editorKey})
+      void clearEverything({
+        setContent,
+        setEditorKey,
+        setTags,
+        setNotebooks,
+        setTitle,
+        setNoteAttributes,
+        editorKey: initialEditorKey.current,
+      })
     }
-  }, [deadState, editorKey])
+  }, [deadState])
 
   return (
     <div className="app-shell">

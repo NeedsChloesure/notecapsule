@@ -37,6 +37,10 @@
 	"vars": {
 		"Notesnook-Server-Url": "https://api.notesnook.com"
 	},
+	"keep_vars": true,
+	"secrets": {
+		"required": ["DEBUG_AUTH_SECRET"]
+	},
 	"ratelimits": [
 		{
 			"name": "PUBLISHED_DO",

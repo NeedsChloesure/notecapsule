@@ -37,6 +37,41 @@ interface UserData {
 	toDate: number,
 }
 
+type DebugEnv = Env & {
+	DEBUG_AUTH_SECRET?: string,
+}
+
+function requireDebugAuth(request: Request, env: DebugEnv): Response | null {
+	const secret = env.DEBUG_AUTH_SECRET
+	if (!secret) {
+		return new Response("Debug endpoints are disabled.", { status: 503 })
+	}
+
+	if (request.headers.get("Authorization") !== `Bearer ${secret}`) {
+		return new Response("Unauthorized", {
+			status: 401,
+			headers: { "WWW-Authenticate": "Bearer" },
+		})
+	}
+
+	return null
+}
+
+function resolveServer(server: string | undefined, fallback: string): string | null {
+	const value = (server ?? fallback).trim()
+	if (!value) return null
+
+	try {
+		const parsed = new URL(value)
+		if (parsed.protocol !== "https:" || parsed.username || parsed.password || parsed.search || parsed.hash) {
+			return null
+		}
+		return parsed.toString().replace(/\/+$/, "")
+	} catch {
+		return null
+	}
+}
+
 export class notesnookFromThePast extends DurableObject<Env> {
 	constructor(ctx: DurableObjectState, env: Env) {
 		super(ctx, env)
@@ -93,7 +128,12 @@ export class notesnookFromThePast extends DurableObject<Env> {
 			return
 		}
 		const parsedData = typia.json.assertParse<StoredData>(data)
-		const publicKey = await getInboxPublicEncryptionKey(parsedData.apikey, parsedData.server ?? this.env["Notesnook-Server-Url"])
+		const server = resolveServer(parsedData.server, this.env["Notesnook-Server-Url"])
+		if (!server) {
+			await this.ctx.storage.deleteAll()
+			return
+		}
+		const publicKey = await getInboxPublicEncryptionKey(parsedData.apikey, server)
 		if (!publicKey) {
 			// never deliverable, apikey invalid
 			await this.ctx.storage.deleteAll()
@@ -116,7 +156,7 @@ export class notesnookFromThePast extends DurableObject<Env> {
 			type: "note"
 		}
 		const message = await encrypt(typia.json.assertStringify<InboxItemSchema>(note), publicKey)
-		await postEncryptedInboxItem(parsedData.apikey, message, parsedData.server ?? this.env["Notesnook-Server-Url"])
+		await postEncryptedInboxItem(parsedData.apikey, message, server)
 		// if the below fails, we'll end up sending it twice.
 		// there's no way around it.
 		await this.ctx.storage.deleteAll()
@@ -149,7 +189,10 @@ export default {
 				const data = typia.json.validateParse<KeyRequest>(await request.text())
 				if (data.success) {
 					const apikey = data.data.apikey
-					const server = data.data.server ?? env["Notesnook-Server-Url"]
+					const server = resolveServer(data.data.server, env["Notesnook-Server-Url"])
+					if (!server) {
+						return new Response(null, { status: 400 })
+					}
 					const key = await getInboxPublicEncryptionKey(apikey, server)
 					if (!key) {
 						return new Response(null, {status: 401})
@@ -158,6 +201,9 @@ export default {
 				} else {
 					return new Response(null, { status: 400 })
 				}
+			}
+			if (url.pathname !== "/api") {
+				return new Response(null, { status: 404 })
 			}
 			const id = env.NOTESNOOK_FROM_THE_PAST.newUniqueId()
 			const stub = env.NOTESNOOK_FROM_THE_PAST.get(id)
@@ -178,7 +224,14 @@ export default {
 				// return 413 for content that's definitely way too large.
 				return new Response(null, {status: 413})
 			}
-			const publicKey = await getInboxPublicEncryptionKey(data.options.apikey, data.options.server ?? env["Notesnook-Server-Url"])
+			const server = resolveServer(data.options.server, env["Notesnook-Server-Url"])
+			if (!server) {
+				return new Response(null, { status: 400 })
+			}
+			if (data.options.server !== undefined) {
+				data.options.server = server
+			}
+			const publicKey = await getInboxPublicEncryptionKey(data.options.apikey, server)
 			if (!publicKey) {
 				return new Response(null, { status: 401 })
 			}
@@ -207,6 +260,9 @@ export default {
 		}
 
 		if (request.method === "GET" && url.pathname === "/api/size") {
+			const authResponse = requireDebugAuth(request, env)
+			if (authResponse) return authResponse
+
 			const id = url.searchParams
 			const DOid = id.get("DO")
 			if (!DOid) {
@@ -219,6 +275,9 @@ export default {
 			return Response.json(bytes)
 		}
 		if (request.method === "GET" && url.pathname === "/api/harddelete") {
+			const authResponse = requireDebugAuth(request, env)
+			if (authResponse) return authResponse
+
 			const yes = await env.PUBLISHED_DO.limit({key: "DEBUG_GLOBALKEY_DELETE"})
 			if (!yes.success) {
 				return Response.json({}, {status: 429})
@@ -234,6 +293,9 @@ export default {
 			return Response.json({result: bytes})
 		}
 		if (request.method === "GET" && url.pathname === "/api/dump") {
+			const authResponse = requireDebugAuth(request, env)
+			if (authResponse) return authResponse
+
 			const yes = await env.PUBLISHED_DO.limit({key: "DEBUG_GLOBALKEY_DUMP"})
 			if (!yes.success) {
 				return Response.json({}, {status: 429})
