@@ -223,6 +223,8 @@ function NoteEditor({content, onContentChange, tags, title, setTags, setTitle}:N
     editable: true,
     autofocus: 'start',
     content: content,
+    dateFormat: 'MMM DD, YYYY',
+    timeFormat: '24-hour',
     // The bundled syntax highlighter marks some code-block transactions with
     // `preventUpdate`. Persist from onTransaction so those transactions are
     // not skipped, and keep onUpdate/onBlur as normal-editor fallbacks.

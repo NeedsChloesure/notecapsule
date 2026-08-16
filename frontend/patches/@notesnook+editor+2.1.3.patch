@@ -1,5 +1,5 @@
 diff --git a/node_modules/@notesnook/editor/dist/index.mjs b/node_modules/@notesnook/editor/dist/index.mjs
-index 643577e..aa4113f 100644
+index 643577e..6ca0aa7 100644
 --- a/node_modules/@notesnook/editor/dist/index.mjs
 +++ b/node_modules/@notesnook/editor/dist/index.mjs
 @@ -2902,17 +2902,25 @@ function HighlighterPlugin({
@@ -74,6 +74,15 @@ index 643577e..aa4113f 100644
  var tasklist = (editor) => ({
    key: "tasklist",
    type: "button",
+@@ -5728,7 +5722,7 @@ var DateTime = Extension.create({
+   }
+ });
+ function shortcutInputRule(config2) {
+-  const regex2 = new RegExp(`(^| )${config2.shortcut}(\\s)`, "i");
++  const regex2 = new RegExp(`(^| )${config2.shortcut}(\\s)$`, "i");
+   return textInputRule({
+     find: regex2,
+     replace: (match) => {
 @@ -8075,20 +8069,18 @@ var defaultPresets = {
        "bold",
        "italic",
