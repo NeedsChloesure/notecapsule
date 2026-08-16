@@ -2,6 +2,11 @@ import { DurableObject } from "cloudflare:workers";
 import typia, { tags } from "typia";
 import { getInboxPublicEncryptionKey, postEncryptedInboxItem, encrypt, InboxItemSchema } from "../nn-inbox-cloudflare-workers/src/index"
 
+interface KeyRequest {
+	server?: string,
+	apikey: string
+}
+
 type NoteOptions = {
 	notebookIds?: string[],
 	tagIds?: string[],
@@ -125,7 +130,22 @@ export class notesnookFromThePast extends DurableObject<Env> {
 
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
+		const url = new URL(request.url)
 		if (request.method === "POST") {
+			if (url.pathname === "/api/key") {
+				const data = typia.json.validateParse<KeyRequest>(await request.text())
+				if (data.success) {
+					const apikey = data.data.apikey
+					const server = data.data.server ?? env["Notesnook-Server-Url"]
+					const key = await getInboxPublicEncryptionKey(apikey, server)
+					if (!key) {
+						return new Response(null, {status: 401})
+					}
+					return new Response(null, {status: 200})
+				} else {
+					return new Response(null, { status: 400 })
+				}
+			}
 			const id = env.NOTESNOOK_FROM_THE_PAST.newUniqueId()
 			const stub = env.NOTESNOOK_FROM_THE_PAST.get(id)
 			let data: UserData
@@ -172,7 +192,7 @@ export default {
 			}
 			return new Response(null, { status: 204 })
 		}
-		const url = new URL(request.url)
+
 		if (request.method === "GET" && url.pathname === "/api/size") {
 			const id = url.searchParams
 			const DOid = id.get("DO")

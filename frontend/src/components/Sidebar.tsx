@@ -152,28 +152,26 @@ function Sidebar({
     setStatusMessage('Validating API key…')
     try {
       const apiServer = normalizeServer(server)
-      const result = await fetch(`${apiServer}/inbox/public-encryption-key`, {
-        headers: { Authorization: apiKey.trim() },
+      // we validate the key on the worker instead of in the client
+      // in order to ensure that:
+      // - the worker can connect to the server.
+      const result = await fetch(`/api/key`, {
+        method: "POST",
+        body: JSON.stringify({server: apiServer, apikey: apiKey})
+        //headers: { Authorization: apiKey.trim() },
       })
       if (!result.ok) {
         setProceed(false)
         setStatusMessage('The API key could not be validated.')
         return
       }
-
-      const key:{key: string}= await result.json()
-      if (key.key) {
-        setProceed(true)
-        setStatusMessage('API key validated.')
-      } else {
-        setProceed(false)
-        setStatusMessage('The API key could not be validated.')
-      }
+      setStatusMessage("Key was validated")
+      setProceed(true)
       setTimeout(() => setStatusMessage(''), 3000)
     } catch(err) {
       setProceed(false)
       console.error(err)
-      setStatusMessage('Unable to reach the Notesnook API.')
+      setStatusMessage("Unable to reach Notecapsule's backend server to validate the key.")
     }
   }
 
