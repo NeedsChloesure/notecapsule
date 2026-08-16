@@ -164,6 +164,38 @@ button {
   color: var(--placeholder);
 }
 
+.advanced-settings {
+  margin-top: 18px;
+  border-top: 1px solid var(--separator);
+  border-bottom: 1px solid var(--separator);
+}
+
+.advanced-settings summary {
+  padding: 13px 0;
+  color: var(--paragraph);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  list-style-position: inside;
+}
+
+.advanced-settings summary::marker {
+  color: var(--accent);
+}
+
+.advanced-settings summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.advanced-settings-content {
+  padding: 0 0 16px;
+}
+
+.advanced-settings-content .form-label {
+  margin-top: 0;
+}
+
 .sidebar-footer {
   margin-top: auto;
   padding: 18px 24px 24px;

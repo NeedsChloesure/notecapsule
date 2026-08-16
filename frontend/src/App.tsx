@@ -6,7 +6,7 @@ import Sidebar from './components/Sidebar'
 import NoteEditor from './components/NoteEditor'
 import ThemeVariables from './components/ThemeVariables'
 import { PrivacyPolicy, TermsOfService } from './pages/LegalPages'
-import { deleteAll } from './utils/imageStore'
+import { clearEverything } from './utils/clearEverything'
 
 function EditorApp() {
   const deadState = sessionStorage.getItem('hasUnsentChanges')
@@ -23,11 +23,10 @@ function EditorApp() {
   // from a previous session. Runs once on mount so the state initializers above
   // have already read whatever was persisted before we clear it.
   useEffect(() => {
-    if (!sessionStorage.getItem('hasUnsentChanges')) {
-      void deleteAll()
-      sessionStorage.clear()
+    if (!deadState) {
+      void clearEverything({setContent, setEditorKey, setTags, setNotebooks, setTitle, setNoteAttributes, editorKey})
     }
-  }, [])
+  }, [deadState, editorKey])
 
   return (
     <div className="app-shell">

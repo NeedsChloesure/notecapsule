@@ -93,7 +93,7 @@ type UserData = {
 
 function normalizeServer(server: string | undefined): string {
   if (server) {
-    return (server?.trim()).replace(/\/+$/, '')
+    return (server.trim()).replace(/\/+$/, '')
   }
   return (DEFAULT_API_SERVER).replace(/\/+$/, '')
 }
@@ -298,14 +298,6 @@ function Sidebar({
           Delivery settings
         </Text>
         <Text className="sidebar-subheading">Choose where and when this note should arrive.</Text>
-        <label className="form-label" htmlFor="server">API server</label>
-        <Input
-          id="server"
-          className="app-input"
-          placeholder={DEFAULT_API_SERVER}
-          onChange={(event) => updateServer(event.target.value)}
-          value={server ?? ''}
-        />
         <label className="form-label" htmlFor="api-key">Inbox API key</label>
         <Input
           id="api-key"
@@ -334,6 +326,24 @@ function Sidebar({
         <Text className="status-message" role="status" aria-live="polite" sx={{ display: 'block', mt: 2, fontSize: '13px' }}>
           {statusMessage}
         </Text>
+
+        <details className="advanced-settings">
+          <summary>Advanced settings</summary>
+          <Box className="advanced-settings-content">
+            <label className="form-label" htmlFor="server">API server</label>
+            <Input
+              id="server"
+              className="app-input"
+              placeholder={DEFAULT_API_SERVER}
+              onChange={(event) => updateServer(event.target.value)}
+              value={server ?? ''}
+            />
+            <Text style={{ fontSize: '12px' }}>
+              You only have to change this setting if you do <i>not</i> use
+              the official Notesnook servers.
+            </Text>
+          </Box>
+        </details>
 
         {canProceed && (
           <Box className="options-panel" as="section" aria-label="Note options" sx={{ mt: 3 }}>

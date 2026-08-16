@@ -117,6 +117,8 @@ export class notesnookFromThePast extends DurableObject<Env> {
 		}
 		const message = await encrypt(typia.json.assertStringify<InboxItemSchema>(note), publicKey)
 		await postEncryptedInboxItem(parsedData.apikey, message, parsedData.server ?? this.env["Notesnook-Server-Url"])
+		// if the below fails, we'll end up sending it twice.
+		// there's no way around it.
 		await this.ctx.storage.deleteAll()
 	}
 
