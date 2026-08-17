@@ -37,11 +37,7 @@ interface UserData {
 	toDate: number,
 }
 
-type DebugEnv = Env & {
-	DEBUG_AUTH_SECRET?: string,
-}
-
-function requireDebugAuth(request: Request, env: DebugEnv): Response | null {
+function requireDebugAuth(request: Request, env: Env): Response | null {
 	const secret = env.DEBUG_AUTH_SECRET
 	if (!secret) {
 		return new Response("Debug endpoints are disabled.", { status: 503 })
@@ -220,7 +216,10 @@ export default {
 			if (data.toDate > maxYear || now.getTime() > data.toDate) {
 				return new Response(null, {status: 400})
 			}
-			if (data.content.length > 16_000_000) {
+			// DOs can only store ~2MiB per key, this check is actually very ambitious
+			// I don't want to have to update the worker if the size gets increased
+			// by a non significant amount.
+			if (data.content.length > 4_000_000) {
 				// return 413 for content that's definitely way too large.
 				return new Response(null, {status: 413})
 			}
@@ -270,7 +269,7 @@ export default {
 			}
 			const _stub = env.NOTESNOOK_FROM_THE_PAST.idFromString(DOid)
 			const stub = env.NOTESNOOK_FROM_THE_PAST.get(_stub)
-			//const stub = env.NOTESNOOK_FROM_THE_PAST.get(DOid)
+
 			const bytes = await stub.getDBSize()
 			return Response.json(bytes)
 		}
