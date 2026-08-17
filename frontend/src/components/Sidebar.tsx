@@ -4,51 +4,11 @@ import { useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import { clearEverything } from '../utils/clearEverything.js'
 import { getImage } from '../utils/imageStore.js'
+import { primaryButtonSx, sidebarButtonSx } from './buttonStyles'
 
 const DEFAULT_API_SERVER = 'https://api.notesnook.com'
 
 const attributeLabels = ['Archived', 'Readonly', 'Pinned', 'Favorited'] as const
-
-const sidebarButtonSx = {
-  appearance: 'none',
-  border: '1px solid',
-  borderColor: 'border',
-  borderRadius: 6,
-  px: 3,
-  py: 2,
-  color: 'paragraph',
-  bg: 'background',
-  fontSize: '14px',
-  fontWeight: '600',
-  lineHeight: 1.2,
-  cursor: 'pointer',
-  transition: 'background-color 150ms ease, border-color 150ms ease, opacity 150ms ease',
-  '&:hover:not(:disabled)': {
-    bg: 'background-secondary',
-    borderColor: 'primary',
-  },
-  '&:focus-visible': {
-    outline: '2px solid',
-    outlineColor: 'primary',
-    outlineOffset: 2,
-  },
-  '&:disabled': {
-    cursor: 'not-allowed',
-    opacity: 0.55,
-  },
-} as const
-
-const primaryButtonSx = {
-  ...sidebarButtonSx,
-  color: 'black',
-  bg: 'primary',
-  borderColor: 'primary',
-  '&:hover:not(:disabled)': {
-    bg: 'primary',
-    borderColor: 'primary',
-    filter: 'brightness(0.92)',
-  },
-} as const
 
 type SidebarProps = {
   editorKey: number

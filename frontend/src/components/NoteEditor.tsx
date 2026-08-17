@@ -11,6 +11,8 @@ import { TextSelection } from '@tiptap/pm/state'
 import { EmotionThemeProvider } from '@notesnook/theme'
 import { Flex, Box, Input, Text } from '@theme-ui/components'
 import { prepareImageForInsert, prepareImageDataUrlForInsert, getImage } from '../utils/imageStore'
+import WebcamCapture from './WebcamCapture'
+import DrawingPad from './DrawingPad'
 
 import '@notesnook/editor/styles/styles.css'
 import '@notesnook/editor/styles/katex.min.css'
@@ -206,6 +208,48 @@ async function insertImageDataUrls(editor: Editor | null, dataUrls: string[]): P
   }
 }
 
+/**
+ * Replaces an existing image node (matched by its content hash) with a new
+ * one — used when the user edits an existing image in the drawing pad and the
+ * flattened result should take the original's place. Falls back to inserting
+ * a fresh image if the original can no longer be found.
+ */
+function replaceImageByHash(
+  editor: Editor,
+  hash: string,
+  attrs: Awaited<ReturnType<typeof prepareImageDataUrlForInsert>>,
+): void {
+  let pos = -1
+  let displayWidth: number | null = null
+  let displayHeight: number | null = null
+  editor.state.doc.descendants((node, nodePos) => {
+    if (node.type.name === 'image' && node.attrs.hash === hash) {
+      pos = nodePos
+      // Keep the original displayed size so editing doesn't change how big the
+      // image appears in the note (the canvas already matches its resolution).
+      displayWidth = node.attrs.width ?? null
+      displayHeight = node.attrs.height ?? null
+      return false
+    }
+    return true
+  })
+
+  if (pos < 0) {
+    editor.chain().focus().insertImage(attrs).run()
+    return
+  }
+
+  const node = editor.state.doc.nodeAt(pos)
+  if (!node) return
+  const newNode = editor.schema.nodes.image.create({
+    ...attrs,
+    width: displayWidth,
+    height: displayHeight,
+  })
+  editor.view.dispatch(editor.state.tr.replaceWith(pos, pos + node.nodeSize, newNode))
+  editor.view.focus()
+}
+
 function handleEditorPaste(editor: Editor | null, event: ClipboardEvent): boolean {
   const files = getImageFiles(event.clipboardData)
   const html = event.clipboardData?.getData('text/html') ?? ''
@@ -239,8 +283,14 @@ type NoteEditorType = {
   setTags: Dispatch<SetStateAction<string[]>>
 }
 
+type CaptureMode =
+  | { type: 'camera' }
+  | { type: 'draw'; hash?: string; initialImageDataUrl?: string }
+  | null
+
 function NoteEditor({content, onContentChange, tags, title, setTags, setTitle}:NoteEditorType) {
   const [tagInput, setTagInput] = useState('')
+  const [captureMode, setCaptureMode] = useState<CaptureMode>(null)
 
   function addTag(value: string = tagInput): void {
     const tag = value.trim()
@@ -271,18 +321,60 @@ function NoteEditor({content, onContentChange, tags, title, setTags, setTitle}:N
   const hostRef = useRef<HTMLDivElement | null>(null)
   const editorRef = useRef<Editor | null>(null)
 
-  // Called when the user picks the "Image" toolbar tool. We deliberately
-  // never give insertImage a `src` — only a `hash` + metadata — so the
-  // document itself stays tiny regardless of image size or count. The
-  // actual bytes live in sessionStorage, looked up lazily via
-  // getAttachmentData below (only once the image scrolls into view).
-  const openAttachmentPicker = useCallback(async (type: string) => {
-    if (type !== 'image' && type !== 'camera') return
-    const file = await pickFile()
-    if (!file) return
-    const attrs = await prepareImageForInsert(file)
-    editorRef.current?.chain().focus().insertImage(attrs).run()
-  }, [])
+  // Called when the user picks an image source from the "Image" submenu of
+  // the insert-block menu. We deliberately never give insertImage a `src` —
+  // only a `hash` + metadata — so the document itself stays tiny regardless
+  // of image size or count. The actual bytes live in IndexedDB, looked up
+  // lazily via getAttachmentData below (only once the image scrolls into
+  // view).
+  const openAttachmentPicker = useCallback(
+    async (type: string, attachment?: { hash?: string }) => {
+      if (type === 'image') {
+        const file = await pickFile()
+        if (!file) return
+        const attrs = await prepareImageForInsert(file)
+        editorRef.current?.chain().focus().insertImage(attrs).run()
+        return
+      }
+      if (type === 'camera') {
+        setCaptureMode({ type: 'camera' })
+        return
+      }
+      if (type === 'draw' || type === 'edit') {
+        const initialImageDataUrl = attachment?.hash
+          ? (await getImage(attachment.hash)) ?? undefined
+          : undefined
+        setCaptureMode({ type: 'draw', hash: attachment?.hash, initialImageDataUrl })
+      }
+    },
+    [],
+  )
+
+  async function handleCameraCapture(dataUrl: string): Promise<void> {
+    setCaptureMode(null)
+    try {
+      const attrs = await prepareImageDataUrlForInsert(dataUrl, 'webcam.jpg')
+      editorRef.current?.chain().focus().insertImage(attrs).run()
+    } catch (err) {
+      console.error('Failed to insert webcam photo', err)
+    }
+  }
+
+  async function handleDrawingSave(dataUrl: string, hash?: string): Promise<void> {
+    setCaptureMode(null)
+    try {
+      const attrs = await prepareImageDataUrlForInsert(dataUrl, 'drawing.png')
+      const editor = editorRef.current
+      if (!editor) return
+      if (hash) {
+        replaceImageByHash(editor, hash, attrs)
+      } else {
+        editor.chain().focus().insertImage(attrs).run()
+      }
+    } catch (err) {
+      console.error('Failed to insert drawing', err)
+    }
+  }
 
   // Called lazily by the image node view when it scrolls into view and has
   // a `hash` but no `src`. Must resolve to a data URL string.
@@ -487,6 +579,19 @@ function NoteEditor({content, onContentChange, tags, title, setTags, setTitle}:N
         />
       </Flex>
       </Box>
+      {captureMode?.type === 'camera' && (
+        <WebcamCapture
+          onCapture={handleCameraCapture}
+          onClose={() => setCaptureMode(null)}
+        />
+      )}
+      {captureMode?.type === 'draw' && (
+        <DrawingPad
+          initialImageDataUrl={captureMode.initialImageDataUrl}
+          onSave={(dataUrl) => handleDrawingSave(dataUrl, captureMode.hash)}
+          onClose={() => setCaptureMode(null)}
+        />
+      )}
     </EmotionThemeProvider>
   )
 }

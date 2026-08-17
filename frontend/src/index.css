@@ -560,6 +560,190 @@ button {
   color: var(--placeholder, #999);
 }
 
+/* Webcam + drawing capture dialogs */
+.capture-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.capture-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(640px, 100%);
+  max-height: 92vh;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--background);
+  color: var(--paragraph);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+}
+
+.capture-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--separator);
+}
+
+.capture-modal-title {
+  color: var(--heading);
+  font-size: 15px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+
+.capture-modal-close {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--placeholder);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.capture-modal-close:hover {
+  background: var(--hover);
+  color: var(--paragraph);
+}
+
+.capture-modal-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  overflow: auto;
+  background: #0f0f0f;
+}
+
+.capture-error {
+  margin: 0;
+  max-width: 420px;
+  color: var(--paragraph);
+  font-size: 14px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.webcam-preview,
+.webcam-captured {
+  display: block;
+  max-width: 100%;
+  max-height: 60vh;
+  border-radius: 8px;
+  background: #000;
+  object-fit: contain;
+}
+
+.capture-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--separator);
+}
+
+/* Drawing pad */
+.drawing-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--separator);
+  background: var(--background-secondary);
+}
+
+.drawing-tool {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--paragraph);
+  font-size: 12px;
+}
+
+.drawing-tool input[type="color"] {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.drawing-tool input[type="range"] {
+  width: 110px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.drawing-brush-size {
+  min-width: 34px;
+  color: var(--placeholder);
+  font-size: 11px;
+}
+
+.drawing-tool-button {
+  min-height: 30px;
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+  color: var(--paragraph);
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+
+.drawing-tool-button:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.drawing-tool-button.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accentForeground);
+}
+
+.drawing-tool-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.drawing-body {
+  padding: 16px;
+}
+
+.drawing-canvas {
+  display: block;
+  max-width: 100%;
+  max-height: 58vh;
+  width: auto;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  touch-action: none;
+  cursor: crosshair;
+}
+
 @media (max-width: 780px) {
   .legal-sidebar {
     max-height: none;

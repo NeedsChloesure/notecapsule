@@ -1,5 +1,49 @@
+diff --git a/node_modules/@notesnook/editor/dist/index.d.mts b/node_modules/@notesnook/editor/dist/index.d.mts
+index e4604f6..c9d2211 100644
+--- a/node_modules/@notesnook/editor/dist/index.d.mts
++++ b/node_modules/@notesnook/editor/dist/index.d.mts
+@@ -107,7 +107,7 @@ type ImageAlignmentOptions = {
+ };
+ type Attachment = FileAttachment | WebClipAttachment | ImageAttachment;
+ 
+-type AttachmentType = "image" | "file" | "camera";
++type AttachmentType = "image" | "file" | "camera" | "draw" | "edit";
+ interface AttachmentOptions {
+     types: string[];
+     HTMLAttributes: Record<string, unknown>;
+@@ -849,7 +849,7 @@ interface TiptapStorage {
+     timeFormat?: DateTimeOptions["timeFormat"];
+     openLink?: (url: string) => void;
+     downloadAttachment?: (attachment: Attachment) => void;
+-    openAttachmentPicker?: (type: AttachmentType) => void;
++    openAttachmentPicker?: (type: AttachmentType, attachment?: Pick<Attachment, "hash" | "type">) => void;
+     previewAttachment?: (attachment: Attachment) => void;
+     copyToClipboard?: (text: string, html?: string) => void;
+     createInternalLink?: (attributes?: LinkAttributes) => Promise<LinkAttributes | undefined>;
+diff --git a/node_modules/@notesnook/editor/dist/index.d.ts b/node_modules/@notesnook/editor/dist/index.d.ts
+index e4604f6..c9d2211 100644
+--- a/node_modules/@notesnook/editor/dist/index.d.ts
++++ b/node_modules/@notesnook/editor/dist/index.d.ts
+@@ -107,7 +107,7 @@ type ImageAlignmentOptions = {
+ };
+ type Attachment = FileAttachment | WebClipAttachment | ImageAttachment;
+ 
+-type AttachmentType = "image" | "file" | "camera";
++type AttachmentType = "image" | "file" | "camera" | "draw" | "edit";
+ interface AttachmentOptions {
+     types: string[];
+     HTMLAttributes: Record<string, unknown>;
+@@ -849,7 +849,7 @@ interface TiptapStorage {
+     timeFormat?: DateTimeOptions["timeFormat"];
+     openLink?: (url: string) => void;
+     downloadAttachment?: (attachment: Attachment) => void;
+-    openAttachmentPicker?: (type: AttachmentType) => void;
++    openAttachmentPicker?: (type: AttachmentType, attachment?: Pick<Attachment, "hash" | "type">) => void;
+     previewAttachment?: (attachment: Attachment) => void;
+     copyToClipboard?: (text: string, html?: string) => void;
+     createInternalLink?: (attributes?: LinkAttributes) => Promise<LinkAttributes | undefined>;
 diff --git a/node_modules/@notesnook/editor/dist/index.mjs b/node_modules/@notesnook/editor/dist/index.mjs
-index 643577e..6ca0aa7 100644
+index 643577e..993bf70 100644
 --- a/node_modules/@notesnook/editor/dist/index.mjs
 +++ b/node_modules/@notesnook/editor/dist/index.mjs
 @@ -2902,17 +2902,25 @@ function HighlighterPlugin({
@@ -47,15 +91,34 @@ index 643577e..6ca0aa7 100644
        isMobile ? embedMobile(editor) : embedDesktop(editor),
        table(editor)
      ];
-@@ -4510,7 +4517,6 @@ var image = (editor, isMobile) => ({
+@@ -4502,15 +4509,23 @@ var image = (editor, isMobile) => ({
+       {
+         key: "camera",
+         type: "button",
+-        title: "Take a photo using camera",
++        title: "Take a photo with webcam",
+         icon: Icons.camera,
+-        isHidden: !isMobile,
+         onClick: () => {
+           var _a, _b;
            return (_b = (_a = editor.storage).openAttachmentPicker) == null ? void 0 : _b.call(_a, "camera");
          }
        },
 -      isMobile ? uploadImageFromURLMobile(editor) : uploadImageFromURL(editor)
++      {
++        key: "draw",
++        type: "button",
++        title: "Draw a sketch",
++        icon: Icons.palette,
++        onClick: () => {
++          var _a, _b;
++          return (_b = (_a = editor.storage).openAttachmentPicker) == null ? void 0 : _b.call(_a, "draw");
++        }
++      },
      ]
    }
  });
-@@ -4592,18 +4598,6 @@ var embedDesktop = (editor) => ({
+@@ -4592,18 +4607,6 @@ var embedDesktop = (editor) => ({
      });
    }
  });
@@ -74,7 +137,7 @@ index 643577e..6ca0aa7 100644
  var tasklist = (editor) => ({
    key: "tasklist",
    type: "button",
-@@ -5728,7 +5722,7 @@ var DateTime = Extension.create({
+@@ -5728,7 +5731,7 @@ var DateTime = Extension.create({
    }
  });
  function shortcutInputRule(config2) {
@@ -83,7 +146,19 @@ index 643577e..6ca0aa7 100644
    return textInputRule({
      find: regex2,
      replace: (match) => {
-@@ -8075,20 +8069,18 @@ var defaultPresets = {
+@@ -7952,6 +7955,11 @@ var tools = {
+     title: "Float image",
+     conditional: true
+   },
++  imageEdit: {
++    icon: "palette",
++    title: "Edit image",
++    conditional: true
++  },
+   imageProperties: {
+     icon: "more",
+     title: "Image properties",
+@@ -8075,20 +8083,18 @@ var defaultPresets = {
        "bold",
        "italic",
        "underline",
@@ -112,7 +187,38 @@ index 643577e..6ca0aa7 100644
      ["alignment", "textDirection"],
      ["clearformatting"]
    ],
-@@ -9606,13 +9598,6 @@ var AttachmentNode = Node8.create({
+@@ -8601,6 +8607,22 @@ function ImageFloat(props) {
+     })
+   );
+ }
++function ImageEdit(props) {
++  const { editor } = props;
++  const image2 = findSelectedNode(editor, "image");
++  if (!image2 || !image2.attrs.hash) return null;
++  return /* @__PURE__ */ jsx34(
++    ToolButton,
++    __spreadProps(__spreadValues({}, props), {
++      toggled: false,
++      title: "Edit image",
++      onClick: () => {
++        var _a, _b;
++        return (_b = (_a = editor.storage).openAttachmentPicker) == null ? void 0 : _b.call(_a, "edit", { hash: image2.attrs.hash });
++      }
++    })
++  );
++}
+ function ImageProperties2(props) {
+   const { editor } = props;
+   const [isOpen, setIsOpen] = useState12(false);
+@@ -9328,6 +9350,7 @@ var tools2 = {
+   imageAlignRight: ImageAlignRight,
+   imageProperties: ImageProperties2,
+   imageFloat: ImageFloat,
++  imageEdit: ImageEdit,
+   embedAlignCenter: EmbedAlignCenter,
+   embedAlignLeft: EmbedAlignLeft,
+   embedAlignRight: EmbedAlignRight,
+@@ -9606,13 +9629,6 @@ var AttachmentNode = Node8.create({
        }
      };
    },
@@ -126,7 +232,7 @@ index 643577e..6ca0aa7 100644
    }
    //   addInputRules() {
    //     return [
-@@ -9626,7 +9611,7 @@ var AttachmentNode = Node8.create({
+@@ -9626,7 +9642,7 @@ var AttachmentNode = Node8.create({
    //       }),
    //     ];
    //   },
@@ -135,11 +241,48 @@ index 643577e..6ca0aa7 100644
  function getDataAttribute(name, def) {
    return {
      default: def,
-@@ -10429,7 +10414,6 @@ function ImageComponent(props) {
+@@ -10358,22 +10374,25 @@ function ImageComponent(props) {
+   const isSVG = !!mime && mime.includes("/svg");
+   useEffect14(() => {
+     if (!inView) return;
+-    if (src || !hash || bloburl) return;
++    if (src || !hash) return;
++    let cancelled = false;
+     (function() {
+       return __async(this, null, function* () {
+         var _a, _b;
+         const { hash: hash2 } = node.attrs;
+-        if (hash2) {
+-          const data = yield (_b = (_a = editor.storage).getAttachmentData) == null ? void 0 : _b.call(_a, {
+-            type: "image",
+-            hash: hash2
+-          }).catch(() => null);
+-          if (typeof data !== "string" || !data) return;
+-          setBloburl(toBlobURL(data, "image", node.attrs.mime, hash2));
+-        }
++        if (!hash2) return;
++        const data = yield (_b = (_a = editor.storage).getAttachmentData) == null ? void 0 : _b.call(_a, {
++          type: "image",
++          hash: hash2
++        }).catch(() => null);
++        if (cancelled || typeof data !== "string" || !data) return;
++        setBloburl(toBlobURL(data, "image", node.attrs.mime, hash2));
+       });
+     })();
+-  }, [inView]);
++    return () => {
++      cancelled = true;
++    };
++  }, [inView, hash]);
+   useEffect14(() => {
+     const controller = controllerRef.current;
+     return () => {
+@@ -10429,7 +10448,7 @@ function ImageComponent(props) {
                        "imageAlignLeft",
                        "imageAlignCenter",
                        "imageAlignRight",
 -                      "imageFloat",
++                      "imageEdit",
                        "imageProperties"
                      ],
                      sx: {
