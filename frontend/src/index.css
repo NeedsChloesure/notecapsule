@@ -274,10 +274,6 @@ button {
   text-decoration: underline;
 }
 
-.legal-page {
-  padding-bottom: 72px;
-}
-
 .legal-content {
   color: var(--paragraph);
   font-size: 16px;
@@ -518,11 +514,17 @@ button {
   overscroll-behavior: contain;
 } */
 
-/* Give the document a "chin": extra space below the content so the last line
-   can be scrolled up instead of sitting flush at the bottom. Put it on the
-   page, rather than the scroll wrapper, because the page's 100% minimum height
-   otherwise absorbs the wrapper padding. */
-.editor-page {
+/* Give document surfaces a "chin": extra space below the content so the
+   last line can be scrolled up instead of sitting flush at the bottom. Put it
+   on the page, rather than the scroll wrapper, because the page's 100% minimum
+   height otherwise absorbs the wrapper padding. */
+.editor-page,
+.legal-page {
+  /* These are flex items. Let them grow to include their full document
+     content; otherwise long content can overflow past the padding and make
+     the chin unreachable. */
+  flex: 0 0 auto;
+  height: max-content !important;
   min-height: calc(100% + 40vh) !important;
   padding-bottom: 40vh !important;
 }

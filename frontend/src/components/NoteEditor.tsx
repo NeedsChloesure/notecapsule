@@ -470,6 +470,11 @@ function NoteEditor({content, onContentChange, tags, title, setTags, setTitle}:N
         <Box
           ref={hostRef}
           className="editor-container editor-page"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              editor.chain().focus('end').run()
+            }
+          }}
           sx={{
             width: '100%',
             maxWidth: '900px',
