@@ -1,15 +1,194 @@
 import { Link } from 'react-router'
-import TextDisplay from '../components/TextDisplay'
+import { Box, Flex, Text } from '@theme-ui/components'
+import type { ReactNode } from 'react'
 
-const updatedAt = 'Last updated: August 14, 2026'
+const updatedAt = 'Last updated: August 16, 2026'
 const contactEmail = 'contact@youwereneverhere.fyi'
+
+type LegalNoteProps = {
+  title: string
+  tags: string[]
+  description: string
+  content: ReactNode
+  active: 'terms' | 'privacy'
+  otherPolicy: { to: string; label: string }
+}
+
+function LegalNote({
+  title,
+  tags,
+  description,
+  content,
+  active,
+  otherPolicy,
+}: LegalNoteProps) {
+  return (
+    <div className="app-shell">
+      <Flex className="app-layout" sx={{ height: '100%', width: '100%' }}>
+        <Flex
+          as="nav"
+          className="app-sidebar legal-sidebar"
+          aria-label="Legal navigation"
+          sx={{
+            flexDirection: 'column',
+            width: '300px',
+            flexShrink: 0,
+            height: '100%',
+            borderRight: '1px solid',
+            borderColor: 'border',
+            bg: 'background-secondary',
+            overflowY: 'auto',
+          }}
+        >
+          <Flex className="sidebar-header" sx={{ alignItems: 'center', gap: 3 }}>
+            <Box>
+              <Text className="brand-name">NoteCapsule</Text>
+              <Text className="brand-headline">Schedule a note for the future.</Text>
+            </Box>
+          </Flex>
+          <Box className="sidebar-content" sx={{ px: 3, py: 3 }}>
+            <Link to="/" className="primary-action legal-back-button">
+              ← Back to the editor
+            </Link>
+            <Text
+              className="sidebar-heading"
+              sx={{ fontSize: '18px', fontWeight: 'bold', color: 'paragraph' }}
+            >
+              Policies
+            </Text>
+            <Text className="sidebar-subheading">Terms and privacy for NoteCapsule.</Text>
+            <Box as="nav" aria-label="Policies" sx={{ mt: 2 }}>
+              <Link
+                to="/terms"
+                className={active === 'terms' ? 'legal-policy-link active' : 'legal-policy-link'}
+              >
+                Terms of Service
+              </Link>
+              <Link
+                to="/privacy"
+                className={active === 'privacy' ? 'legal-policy-link active' : 'legal-policy-link'}
+              >
+                Privacy Policy
+              </Link>
+            </Box>
+          </Box>
+          <Box className="sidebar-footer">
+            <Text className="sidebar-footer-copy">
+              By using NoteCapsule, you agree to our <Link to="/terms">Terms of Service</Link> and{' '}
+              <Link to="/privacy">Privacy Policy</Link>.
+            </Text>
+            <Text className="sidebar-footer-copy sidebar-footer-affiliation">
+              NoteCapsule is an independent community project and is not affiliated with or
+              endorsed by Notesnook or Streetwriters (Private) Ltd.
+            </Text>
+            <Text className="sidebar-footer-copy">
+              NoteCapsule is opensource software, find more information{' '}
+              <Link to="https://github.com/needschloesure/notecapsule">here.</Link>
+            </Text>
+          </Box>
+        </Flex>
+
+        <Flex
+          className="note-workspace legal-workspace"
+          sx={{ flex: 1, height: '100%', minWidth: 0, flexDirection: 'column' }}
+        >
+          <Box className="note-header">
+            <Text className="note-eyebrow">NoteCapsule policy</Text>
+            <h1 className="note-title legal-note-title">{title}</h1>
+            <Flex
+              className="note-tags"
+              as="section"
+              aria-label="Note tags"
+              sx={{
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 1,
+                px: 2,
+                minHeight: '38px',
+              }}
+            >
+              {tags.map((tag) => (
+                <Flex
+                  key={tag}
+                  className="tag-chip"
+                  sx={{
+                    alignItems: 'center',
+                    gap: 1,
+                    px: 2,
+                    py: 1,
+                    borderRadius: '999px',
+                    bg: 'background-secondary',
+                    color: 'paragraph',
+                    fontSize: '13px',
+                  }}
+                >
+                  <Text>{tag}</Text>
+                </Flex>
+              ))}
+            </Flex>
+          </Box>
+          <Flex
+            className="legal-toolbar"
+            sx={{
+              flexShrink: 0,
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 2,
+              px: 4,
+              py: 2,
+              borderBottom: '1px solid',
+              borderColor: 'border',
+              bg: 'background',
+            }}
+          >
+            <Text sx={{ fontSize: 12, color: 'placeholder' }}>{updatedAt}</Text>
+            <Link to={otherPolicy.to} className="legal-other-link">
+              {otherPolicy.label}
+            </Link>
+          </Flex>
+          <Flex
+            className="editor-scroll legal-scroll"
+            sx={{
+              flex: 1,
+              minHeight: 0,
+              overflowY: 'auto',
+              justifyContent: 'center',
+              px: 4,
+              py: 4,
+            }}
+          >
+            <Box
+              className="editor-container legal-page"
+              sx={{
+                width: '100%',
+                maxWidth: '900px',
+                minHeight: '100%',
+                fontSize: '16px',
+                color: 'paragraph',
+                bg: 'background',
+              }}
+            >
+              <div className="legal-content">
+                <p className="legal-lead">{description}</p>
+                {content}
+              </div>
+            </Box>
+          </Flex>
+        </Flex>
+      </Flex>
+    </div>
+  )
+}
 
 export function TermsOfService() {
   return (
-    <TextDisplay
+    <LegalNote
       title="Terms of Service"
+      tags={['terms-of-service', 'policy']}
       description="The rules for using NoteCapsule to schedule notes for delivery through Notesnook."
-      updatedAt={updatedAt}
+      active="terms"
+      otherPolicy={{ to: '/privacy', label: 'Read the Privacy Policy →' }}
       content={
         <>
           <h2>Acceptance of Terms</h2>
@@ -160,10 +339,12 @@ export function TermsOfService() {
 
 export function PrivacyPolicy() {
   return (
-    <TextDisplay
+    <LegalNote
       title="Privacy Policy"
+      tags={['privacy-policy', 'policy']}
       description="What NoteCapsule stores, for approximately how long, and why it is needed to schedule a note."
-      updatedAt={updatedAt}
+      active="privacy"
+      otherPolicy={{ to: '/terms', label: 'Read the Terms of Service →' }}
       content={
         <>
           <p>
@@ -210,7 +391,7 @@ export function PrivacyPolicy() {
             only logs that the delivery has failed. 
           </p>
 
-          <h2>Data That May Be Stored, but Usually Is Not</h2>
+          <h2>Data That May Additionally Be Stored</h2>
           <p>
             If a request or delivery causes an unexpected error, metadata about
             the request or failure may be included in application logs. This
@@ -220,10 +401,9 @@ export function PrivacyPolicy() {
           </p>
           <p>
             During active debugging, note content or other request details may
-            be temporarily retained for troubleshooting. Such data is expected
-            to be retained for approximately one week, after which it should be
-            removed according to the hosting platform&apos;s log-retention
-            behavior.
+            be temporarily retained for troubleshooting. This data is retained
+            for approximately one week, after which it should be removed
+            according to the hosting platform&apos;s log-retention behavior.
           </p>
 
           <h2>Data That Is Processed and Then Removed</h2>
@@ -275,8 +455,7 @@ export function PrivacyPolicy() {
             The default configuration forwards notes to the official Notesnook
             service. If you configure a different Notesnook-compatible server,
             that server will receive the delivery request instead. Notes
-            delivered through the official service are subject to the{' '}
-            <a href="https://notesnook.com/privacy">Notesnook Privacy Policy</a>.
+            delivered are subject to the privacy policy of the server configured.
           </p>
 
           <h2>Security of Data</h2>
@@ -288,10 +467,10 @@ export function PrivacyPolicy() {
           </p>
           <p>
             Note content is processed by the service while it waits for the
-            scheduled time. It is encrypted before it is sent to the configured
-            Notesnook inbox endpoint. This means the service must be trusted to
-            process and store the note before the delivery; no service can
-            guarantee absolute security.
+            scheduled time. All data is stored in plaintext.
+            It is encrypted before it is sent to the server configured. 
+            This means the service must be trusted to process and store the note 
+            before the delivery; no service can guarantee absolute security.
           </p>
           <p>
             Reasonable measures are taken to protect stored data, but browser
