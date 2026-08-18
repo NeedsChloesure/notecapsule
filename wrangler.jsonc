@@ -39,7 +39,7 @@
 	},
 	"keep_vars": true,
 	"secrets": {
-		"required": ["DEBUG_AUTH_SECRET"]
+		"required": ["DEBUG_AUTH_SECRET", "YEARS"]
 	},
 	"ratelimits": [
 		{

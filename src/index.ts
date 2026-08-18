@@ -206,7 +206,7 @@ export default {
 			let data: UserData
 			const timezone = request.cf?.timezone ?? "UTC"
 			const now = new Date()
-			const maxYear = new Date(now.getFullYear() + 20, 11, 31, 23, 59, 59, 999).getTime()
+			const maxYear = new Date(now.getFullYear() + Number(env.YEARS), 11, 31, 23, 59, 59, 999).getTime()
 			try {
 				data = typia.json.assertParse<UserData>(await request.text())
 			} catch (err) {
