@@ -387,7 +387,7 @@ export function PrivacyPolicy() {
             possible to cancel a delivery after it is scheduled. User data is 
             removed once the delivery is successful, or has been attempted multiple
             times without success. No sensitive data, like your note contents,
-            apikey, or other note data is logged when a delivery fails. The server 
+            API key, or other note data is logged when a delivery fails. The server 
             only logs that the delivery has failed. 
           </p>
 
