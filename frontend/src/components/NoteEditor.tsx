@@ -209,45 +209,48 @@ async function insertImageDataUrls(editor: Editor | null, dataUrls: string[]): P
 }
 
 /**
- * Replaces an existing image node (matched by its content hash) with a new
- * one — used when the user edits an existing image in the drawing pad and the
- * flattened result should take the original's place. Falls back to inserting
- * a fresh image if the original can no longer be found.
+ * Finds the document position of the image currently selected by the editor.
+ * The image hash is not sufficient as an identity because the same image can
+ * appear more than once in a note.
  */
-function replaceImageByHash(
-  editor: Editor,
-  hash: string,
-  attrs: Awaited<ReturnType<typeof prepareImageDataUrlForInsert>>,
-): void {
-  let pos = -1
-  let displayWidth: number | null = null
-  let displayHeight: number | null = null
-  editor.state.doc.descendants((node, nodePos) => {
-    if (node.type.name === 'image' && node.attrs.hash === hash) {
-      pos = nodePos
-      // Keep the original displayed size so editing doesn't change how big the
-      // image appears in the note (the canvas already matches its resolution).
-      displayWidth = node.attrs.width ?? null
-      displayHeight = node.attrs.height ?? null
-      return false
-    }
-    return true
-  })
+function findSelectedImagePosition(editor: Editor): number | undefined {
+  const { $anchor } = editor.state.selection
+  const selectedNode = editor.state.doc.nodeAt($anchor.pos)
+  if (selectedNode?.type.name === 'image') return $anchor.pos
 
-  if (pos < 0) {
-    editor.chain().focus().insertImage(attrs).run()
-    return
+  for (let depth = $anchor.depth; depth > 0; depth -= 1) {
+    if ($anchor.node(depth).type.name === 'image') return $anchor.before(depth)
   }
 
-  const node = editor.state.doc.nodeAt(pos)
-  if (!node) return
+  return undefined
+}
+
+/**
+ * Replaces the image at a specific document position. The hash is checked as
+ * an additional guard, but is never used to choose between occurrences.
+ * Returns false if the original node is no longer at that position.
+ */
+function replaceImageAtPosition(
+  editor: Editor,
+  position: number,
+  hash: string,
+  attrs: Awaited<ReturnType<typeof prepareImageDataUrlForInsert>>,
+): boolean {
+  const node = editor.state.doc.nodeAt(position)
+  if (node?.type.name !== 'image' || node.attrs.hash !== hash) return false
+
+  // Keep the original displayed size so editing doesn't change how big the
+  // image appears in the note (the canvas already matches its resolution).
   const newNode = editor.schema.nodes.image.create({
     ...attrs,
-    width: displayWidth,
-    height: displayHeight,
+    width: node.attrs.width ?? null,
+    height: node.attrs.height ?? null,
   })
-  editor.view.dispatch(editor.state.tr.replaceWith(pos, pos + node.nodeSize, newNode))
+  editor.view.dispatch(
+    editor.state.tr.replaceWith(position, position + node.nodeSize, newNode),
+  )
   editor.view.focus()
+  return true
 }
 
 function handleEditorPaste(editor: Editor | null, event: ClipboardEvent): boolean {
@@ -285,7 +288,7 @@ type NoteEditorType = {
 
 type CaptureMode =
   | { type: 'camera' }
-  | { type: 'draw'; hash?: string; initialImageDataUrl?: string }
+  | { type: 'draw'; hash?: string; position?: number; initialImageDataUrl?: string }
   | null
 
 function NoteEditor({content, onContentChange, tags, title, setTags, setTitle}:NoteEditorType) {
@@ -340,11 +343,25 @@ function NoteEditor({content, onContentChange, tags, title, setTags, setTitle}:N
         setCaptureMode({ type: 'camera' })
         return
       }
-      if (type === 'draw' || type === 'edit') {
-        const initialImageDataUrl = attachment?.hash
-          ? (await getImage(attachment.hash)) ?? undefined
-          : undefined
-        setCaptureMode({ type: 'draw', hash: attachment?.hash, initialImageDataUrl })
+      if (type === 'edit') {
+        if (!attachment?.hash) return
+        const editor = editorRef.current
+        const position = editor ? findSelectedImagePosition(editor) : undefined
+        if (position === undefined) {
+          console.error('Could not identify the image being edited')
+          return
+        }
+        const initialImageDataUrl = (await getImage(attachment.hash)) ?? undefined
+        setCaptureMode({
+          type: 'draw',
+          hash: attachment.hash,
+          position,
+          initialImageDataUrl,
+        })
+        return
+      }
+      if (type === 'draw') {
+        setCaptureMode({ type: 'draw' })
       }
     },
     [],
@@ -360,16 +377,27 @@ function NoteEditor({content, onContentChange, tags, title, setTags, setTitle}:N
     }
   }
 
-  async function handleDrawingSave(dataUrl: string, hash?: string): Promise<void> {
+  async function handleDrawingSave(
+    dataUrl: string,
+    hash?: string,
+    position?: number,
+  ): Promise<void> {
     setCaptureMode(null)
     try {
       const attrs = await prepareImageDataUrlForInsert(dataUrl, 'drawing.png')
       const editor = editorRef.current
       if (!editor) return
-      if (hash) {
-        replaceImageByHash(editor, hash, attrs)
-      } else {
+      if (hash !== undefined && position !== undefined) {
+        if (!replaceImageAtPosition(editor, position, hash, attrs)) {
+          // The document changed while the drawing dialog was open. Do not
+          // guess which duplicate image was intended; insert the result as a
+          // new image instead.
+          editor.chain().focus().insertImage(attrs).run()
+        }
+      } else if (hash === undefined && position === undefined) {
         editor.chain().focus().insertImage(attrs).run()
+      } else {
+        console.error('Could not identify the image being edited')
       }
     } catch (err) {
       console.error('Failed to insert drawing', err)
@@ -588,7 +616,9 @@ function NoteEditor({content, onContentChange, tags, title, setTags, setTitle}:N
       {captureMode?.type === 'draw' && (
         <DrawingPad
           initialImageDataUrl={captureMode.initialImageDataUrl}
-          onSave={(dataUrl) => handleDrawingSave(dataUrl, captureMode.hash)}
+          onSave={(dataUrl) =>
+            handleDrawingSave(dataUrl, captureMode.hash, captureMode.position)
+          }
           onClose={() => setCaptureMode(null)}
         />
       )}
