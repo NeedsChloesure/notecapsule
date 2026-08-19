@@ -28,7 +28,8 @@ type StoredData = {
 	server?: string,
 	apikey: string,
 	fromDate: number,
-	userTimezone: string
+	userTimezone: string,
+	compressed?: boolean
 }
 
 interface UserData {
@@ -74,7 +75,16 @@ export class notesnookFromThePast extends DurableObject<Env> {
 	}
 
 	async DUMP() {
-		const html = await this.ctx.storage.get("note")
+		let html: ArrayBuffer | string | undefined = await this.ctx.storage.get("note")
+		if (html instanceof ArrayBuffer) {
+			try {
+			const decompress = new Response(html).body!.pipeThrough(new DecompressionStream("gzip"))
+			html = await new Response(decompress).text()
+			} catch (err) {
+				console.error("Error uncompressing note content in debug function. Likely corrupt?: ", err)
+				html = ""
+			}
+		}
 		const data = await this.ctx.storage.get("data")
 		const alarm = await this.ctx.storage.getAlarm();
 		return {
@@ -95,15 +105,18 @@ export class notesnookFromThePast extends DurableObject<Env> {
 		return true
 	}
 
-	async createDO(data: UserData, timezone: string) {
-		const { options, content } = data;
+	async createDO(data: UserData, timezone: string, rawBytes: Uint8Array) {
+		const { options } = data;
 		const safeOptions: StoredData = {
 			...options,
 			fromDate: Date.now(),
 			userTimezone: timezone,
+			compressed: true,
 			}
+		const readableCompressedStream = new Response(rawBytes).body!.pipeThrough(new CompressionStream("gzip"))
+		const arrBuff = await new Response(readableCompressedStream).arrayBuffer()
 		try {
-			await this.ctx.storage.put("note", content)
+			await this.ctx.storage.put("note", arrBuff)
 			await this.ctx.storage.put("data", typia.json.assertStringify<StoredData>(safeOptions))
 			await this.ctx.storage.setAlarm(data.toDate)
 		} catch (err) {
@@ -117,13 +130,14 @@ export class notesnookFromThePast extends DurableObject<Env> {
 
 	private async sendNote() {
 		const data: string | undefined = await this.ctx.storage.get<string>("data")
-		const noteHtml: string | undefined = await this.ctx.storage.get<string>("note")
-		if (data === undefined || noteHtml === undefined) {
+		const noteData: string | ArrayBuffer | undefined = await this.ctx.storage.get<string | ArrayBuffer>("note")
+		if (data === undefined || noteData === undefined) {
 			console.log("I'm corrupt?")
 			await this.ctx.storage.deleteAll()
 			return
 		}
 		const parsedData = typia.json.assertParse<StoredData>(data)
+		let finalNoteHTML: string;
 		const server = resolveServer(parsedData.server, this.env["Notesnook-Server-Url"])
 		if (!server) {
 			await this.ctx.storage.deleteAll()
@@ -134,6 +148,33 @@ export class notesnookFromThePast extends DurableObject<Env> {
 			// never deliverable, apikey invalid
 			await this.ctx.storage.deleteAll()
 			return
+		}
+		if (parsedData.compressed) {
+			if (!(noteData instanceof ArrayBuffer)) {
+				console.error("Compressed payload is not ArrayBuffer")
+				await this.ctx.storage.deleteAll();
+				return;
+			}
+			try {
+				const decompressionResult = new Response(noteData).body!.pipeThrough(new DecompressionStream("gzip"))
+				if (!decompressionResult) {
+					await this.ctx.storage.deleteAll();
+					console.error("Damaged Compressed Stream")
+					return
+				}
+				finalNoteHTML = await new Response(decompressionResult).text()
+			} catch(err) {
+				console.error("Giving up:", err)
+				await this.ctx.storage.deleteAll();
+				return;
+			}
+		} else {
+			if (typeof noteData !== "string"){
+				console.error("Somehow I ended up here. I really should not be here.")
+				await this.ctx.storage.deleteAll()
+				return
+			}
+			finalNoteHTML = noteData
 		}
 		const note: InboxItemSchema = {
 			title: parsedData.note.title,
@@ -147,7 +188,7 @@ export class notesnookFromThePast extends DurableObject<Env> {
 			version: 1,
 			content: {
 				type: "html",
-				data: noteHtml
+				data: finalNoteHTML
 			},
 			type: "note"
 		}
@@ -216,10 +257,11 @@ export default {
 			if (data.toDate > maxYear || now.getTime() > data.toDate) {
 				return new Response(null, {status: 400})
 			}
+			const stringToBytes = new TextEncoder().encode(data.content)
 			// DOs can only store ~2MiB per key, this check is actually very ambitious
 			// I don't want to have to update the worker if the size gets increased
 			// by a non significant amount.
-			if (data.content.length > 4_000_000) {
+			if (stringToBytes.byteLength > 4_000_000) {
 				// return 413 for content that's definitely way too large.
 				return new Response(null, {status: 413})
 			}
@@ -244,7 +286,7 @@ export default {
 				if (!yes.success) {
 					return new Response("Ratelimited", {status: 429})
 				}
-				await stub.createDO(data, timezone)
+				await stub.createDO(data, timezone, stringToBytes)
 			} catch (err) {
 				if (err instanceof Error) {
 					if (err.message.endsWith("SQLITE_TOOBIG")){
