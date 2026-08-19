@@ -433,7 +433,7 @@ async function alterHTMLForPublishing(content: string): Promise<string> {
 
     image.remove()
   }
-  const elements = document.body.children
+  const elements = doc.body.querySelectorAll("[data-block-id]")
   for (const element of elements) {
     // remove all data-block-ids since Notesnook will create its own on receipt.
     // data-spacing *could* be removed but could functionally change the appearance of the content.
