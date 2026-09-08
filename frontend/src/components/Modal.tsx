@@ -5,13 +5,15 @@ type ModalProps = {
   title: string
   onClose: () => void
   children: ReactNode
+  /** Extra class for the dialog box, e.g. to widen it for the drawing pad. */
+  className?: string
 }
 
 /**
  * Simple overlay modal used by the webcam + drawing capture dialogs.
  * Styled with the app's CSS variables so it matches the active theme.
  */
-function Modal({ title, onClose, children }: ModalProps) {
+function Modal({ title, onClose, children, className }: ModalProps) {
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') onClose()
@@ -23,7 +25,7 @@ function Modal({ title, onClose, children }: ModalProps) {
   return (
     <div className="capture-modal-backdrop" onMouseDown={onClose}>
       <div
-        className="capture-modal"
+        className={`capture-modal${className ? ` ${className}` : ''}`}
         role="dialog"
         aria-modal="true"
         aria-label={title}
