@@ -658,6 +658,23 @@ button {
   border-top: 1px solid var(--separator);
 }
 
+/* Image preview lightbox */
+.image-preview-modal {
+  width: min(1100px, 100%);
+}
+
+.image-preview-body {
+  background: #0f0f0f;
+}
+
+.image-preview {
+  display: block;
+  max-width: 100%;
+  max-height: 78vh;
+  border-radius: 8px;
+  object-fit: contain;
+}
+
 /* Drawing pad */
 .drawing-modal {
   width: min(960px, 100%);

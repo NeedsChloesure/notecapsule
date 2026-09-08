@@ -13,6 +13,7 @@ import { Flex, Box, Input, Text } from '@theme-ui/components'
 import { prepareImageForInsert, prepareImageDataUrlForInsert, getImage } from '../utils/imageStore'
 import WebcamCapture from './WebcamCapture'
 import DrawingPad from './DrawingPad'
+import Modal from './Modal'
 
 import '@notesnook/editor/styles/styles.css'
 import '@notesnook/editor/styles/katex.min.css'
@@ -291,9 +292,12 @@ type CaptureMode =
   | { type: 'draw'; hash?: string; position?: number; initialImageDataUrl?: string }
   | null
 
+type PreviewState = { src: string; filename: string } | null
+
 function NoteEditor({content, onContentChange, tags, title, setTags, setTitle}:NoteEditorType) {
   const [tagInput, setTagInput] = useState('')
   const [captureMode, setCaptureMode] = useState<CaptureMode>(null)
+  const [preview, setPreview] = useState<PreviewState>(null)
 
   function addTag(value: string = tagInput): void {
     const tag = value.trim()
@@ -444,6 +448,17 @@ function NoteEditor({content, onContentChange, tags, title, setTags, setTitle}:N
     },
     openAttachmentPicker,
     getAttachmentData,
+    // Lightbox for the image toolbar's eye button. The data lives in
+    // IndexedDB (the document only stores a hash), so resolve it lazily.
+    previewAttachment: async (attachment) => {
+      if (attachment.type !== 'image' || !attachment.hash) return
+      const data = await getImage(attachment.hash)
+      if (!data) {
+        console.error('Could not preview image: data missing from store')
+        return
+      }
+      setPreview({ src: data, filename: attachment.filename || 'image' })
+    },
     editorProps: {
       handleKeyDown: (_view, event) => handleEditorKeyDown(editorRef.current, event),
       handlePaste: (_view, event) => handleEditorPaste(editorRef.current, event),
@@ -621,6 +636,13 @@ function NoteEditor({content, onContentChange, tags, title, setTags, setTitle}:N
           }
           onClose={() => setCaptureMode(null)}
         />
+      )}
+      {preview && (
+        <Modal title={preview.filename} onClose={() => setPreview(null)} className="image-preview-modal">
+          <div className="capture-modal-body image-preview-body">
+            <img src={preview.src} alt={preview.filename} className="image-preview" />
+          </div>
+        </Modal>
       )}
     </EmotionThemeProvider>
   )
