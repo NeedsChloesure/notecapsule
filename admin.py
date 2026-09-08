@@ -76,7 +76,10 @@ def get_object_info(object_id):
 def format_bytes(size):
     if size is None:
         return "?"
-
+    # Kilobyte & Kibibyte isn't a mismatch here really,
+    # Cloudflare displays *Kilobytes* (or MB/GB) in the dash
+    # But the docs use MiB as the max value size. The decision here is
+    # intentional.
     if size < 1024:
         return f"{size} B"
     elif size < 1024 ** 2:
@@ -87,6 +90,8 @@ def format_bytes(size):
         return f"{size / 1000**3:.2f} GB"
 
 
+# Unused, but can be used for formatting alarm timestamps (stored in ms)
+# for date-string display. I'm including it here for someone else to use it.
 def format_alarm(timestamp_ms):
     if timestamp_ms is None:
         return "NONE"
@@ -110,6 +115,7 @@ def main():
     suspicious = []
     total_size = 0
     stored_data = 0
+    total_skipped_suspected_fired = 0
 
     for obj in objects:
         object_id = obj["id"]
@@ -122,6 +128,19 @@ def main():
               size = info.get("size")
               alarm = info.get("alarm")
 
+              if size == 4096 and alarm is None:
+                  # Why continue here?
+                  # if the alarm is none, but the size is 4096
+                  # the likely cause is that the DO alarm *fired*
+                  # and cleared the data stored, but the API
+                  # response hasn't caught up yet.
+                  # A better implementation would check these later
+                  # in about 15 minutes to see if the API response caught
+                  # up to reality, but just skipping over them for now is
+                  # ok with me.
+                  total_skipped_suspected_fired += 1
+                  continue
+              
               if size is not None:
                   total_size += size
 
@@ -144,6 +163,7 @@ def main():
         print("OK: No suspicious Durable Objects found.")
         print("Every object with stored data has an alarm.")
         print(f"Objects with stored stored data: {stored_data}")
+        print(f"Objects skipped because their alarm has likely fired: {total_skipped_suspected_fired}")
         return
 
     print("=" * 80)
@@ -151,7 +171,8 @@ def main():
     print("Stored data exists, but no alarm is scheduled.")
     print("=" * 80)
     print()
-    print(f"Objects with stored stored data: {stored_data}")
+    print(f"Objects with stored data: {stored_data}")
+    print(f"Objects omitted from suspicious treatment due to heuristics: {total_skipped_suspected_fired}")
 
     for obj in suspicious:
         print(
