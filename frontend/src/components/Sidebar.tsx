@@ -1,6 +1,6 @@
 import { Box, Button, Flex, IconButton, Input, Text } from '@theme-ui/components'
 import { Link } from 'react-router'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import { clearEverything } from '../utils/clearEverything.js'
 import { getImage } from '../utils/imageStore.js'
@@ -11,6 +11,7 @@ const DEFAULT_API_SERVER = 'https://api.notesnook.com'
 const attributeLabels = ['Archived', 'Readonly', 'Pinned', 'Favorited'] as const
 
 type SidebarProps = {
+  onOpenDebugMenu: () => void
   editorKey: number
   setEditorKey: Dispatch<SetStateAction<number>>
   title: string
@@ -79,6 +80,7 @@ function describeSendError(status: number, statusText: string): string {
 }
 
 function Sidebar({
+  onOpenDebugMenu,
   editorKey,
   setEditorKey,
   title,
@@ -101,6 +103,17 @@ function Sidebar({
   const [isSending, setIsSending] = useState(false)
   const [statusMessage, setStatusMessage] = useState('')
   const [sendToDate, setDate] = useState(0)
+  const debugClicks = useRef<number[]>([])
+
+  /** Hidden debug menu: 5 clicks on the brand name within 3 seconds. */
+  function handleBrandClick(): void {
+    const now = Date.now()
+    debugClicks.current = [...debugClicks.current.filter((t) => now - t < 3000), now]
+    if (debugClicks.current.length >= 5) {
+      debugClicks.current = []
+      onOpenDebugMenu()
+    }
+  }
 
   async function validateKey(): Promise<void> {
     if (!apiKey.trim()) {
@@ -243,7 +256,11 @@ function Sidebar({
     >
       <Flex className="sidebar-header" sx={{ alignItems: 'center', gap: 3 }}>
         <Box>
-          <Text className="brand-name">NoteCapsule</Text>
+          <Text
+            className="brand-name"
+            title=""
+            onClick={handleBrandClick}
+          >NoteCapsule</Text>
           <Text className="brand-headline">Schedule a note for the future.</Text>
         </Box>
       </Flex>

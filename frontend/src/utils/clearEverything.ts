@@ -8,10 +8,15 @@ type ClearEverythingProps = {
     setNoteAttributes: Dispatch<SetStateAction<boolean[]>>,
     setNotebooks: Dispatch<SetStateAction<string[]>>,
     setEditorKey: Dispatch<SetStateAction<number>>,
-    editorKey: number
+    editorKey: number,
+    /** Skip remounting the editor (used when new content is applied right after). */
+    skipEditorRemount?: boolean
 }
 
-const keys = ["hasUnsentChanges", "tags", "title", "notebooks", "noteAttributes", "note_content"]
+/** sessionStorage keys that hold the unsent draft. */
+export const DRAFT_STORAGE_KEYS = ["hasUnsentChanges", "tags", "title", "notebooks", "noteAttributes", "note_content"]
+
+const keys = DRAFT_STORAGE_KEYS
 
 export function clearEverything({
     editorKey,
@@ -20,15 +25,16 @@ export function clearEverything({
     setTags,
     setNoteAttributes,
     setNotebooks,
-    setEditorKey
+    setEditorKey,
+    skipEditorRemount = false
 }: ClearEverythingProps): void {
   setContent('<p></p>');
-  (async () => {await deleteAll()})();
+  void deleteAll();
   setTitle('');
   setTags([]);
   setNoteAttributes([false, false, false, false]);
   setNotebooks([]);
-  setEditorKey(editorKey + 1)
+  if (!skipEditorRemount) setEditorKey(editorKey + 1)
 
   for (const key of keys) {
     sessionStorage.removeItem(key)

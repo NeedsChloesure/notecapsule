@@ -137,4 +137,9 @@ export async function deleteAll(): Promise<void> {
   const db = await dbPromise;
   const transaction = db.transaction(STORE_NAME, "readwrite")
   transaction.objectStore(STORE_NAME).clear()
+  await new Promise<void>((resolve, reject) => {
+    transaction.oncomplete = () => resolve()
+    transaction.onerror = () => reject(transaction.error)
+    transaction.onabort = () => reject(transaction.error)
+  })
 }

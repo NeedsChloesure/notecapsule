@@ -663,6 +663,160 @@ button {
   width: min(1100px, 100%);
 }
 
+/* Debug menu */
+.debug-modal {
+  width: min(560px, 100%);
+}
+
+.debug-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  overflow-y: auto;
+}
+
+.debug-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--paragraph);
+}
+
+.debug-field input {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background-secondary);
+  color: var(--paragraph);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+}
+
+.debug-fetch,
+.debug-insert,
+.debug-delete {
+  padding: 9px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background-secondary);
+  color: var(--paragraph);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.debug-fetch:hover:not(:disabled),
+.debug-insert:hover:not(:disabled),
+.debug-delete:hover:not(:disabled) {
+  background: var(--background-selected);
+}
+
+.debug-fetch:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.debug-insert {
+  background: var(--background-selected);
+  color: var(--paragraph-selected, var(--paragraph));
+  font-weight: 600;
+}
+
+.debug-delete {
+  color: #d64545;
+}
+
+.debug-confirm-delete {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background-secondary);
+  font-size: 13px;
+}
+
+.debug-confirm-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.debug-confirm-buttons button {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+  color: var(--paragraph);
+  cursor: pointer;
+}
+
+.debug-delete-confirm {
+  color: #d64545;
+  font-weight: 600;
+}
+
+.debug-error,
+.debug-delete-status {
+  margin: 0;
+  font-size: 13px;
+}
+
+.debug-error {
+  color: #d64545;
+}
+
+.debug-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background-secondary);
+  font-size: 13px;
+}
+
+.debug-summary > div {
+  display: flex;
+  gap: 10px;
+}
+
+.debug-key {
+  flex: 0 0 90px;
+  color: var(--paragraph);
+  opacity: 0.65;
+}
+
+.debug-raw {
+  font-size: 12px;
+}
+
+.debug-raw summary {
+  cursor: pointer;
+  color: var(--paragraph);
+  opacity: 0.7;
+}
+
+.debug-raw pre {
+  max-height: 180px;
+  overflow: auto;
+  margin: 8px 0 0;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background-secondary);
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.debug-raw-html {
+  max-height: 240px;
+}
+
 .image-preview-body {
   background: #0f0f0f;
 }
